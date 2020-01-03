@@ -1,0 +1,88 @@
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+import math
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms 
+
+from sklearn import preprocessing
+scaler_std = preprocessing.StandardScaler()
+from sklearn.decomposition import PCA
+
+def parse_file(path_to_file):
+    with open(path_to_file) as f:
+        raw_data = f.read()
+    data = [row.split() for row in raw_data.split('@')][1:]
+    clean_data = {field[0]: field[1:] for field in data}
+    data_to_df = [row.split(',') for row in clean_data['data']]
+    columns = clean_data['inputs'] + clean_data['outputs']
+    columns = [colname.strip(', ') for colname in columns]
+    df = pd.DataFrame(data=data_to_df, columns=columns, dtype=np.float64)
+    return df
+
+df = parse_file('winequality-red.dat')
+
+del(df['Quality'])
+df.head()
+
+def conf_ellipse(x, y, ax, p_value, facecolor='none', **kwargs):
+    if x.size != y.size:
+        raise ValueError
+    cov = np.cov(x,y)
+    pearson = cov[0,1] / np.sqrt(cov[0,0] * cov[1,1])
+    ell_radius_x = np.sqrt(1 + pearson)
+    ell_radius_y = np.sqrt(1 - pearson)
+    ellipse = Ellipse((0,0), width=ell_radius_x * 2,
+                      height=ell_radius_y * 2, facecolor=facecolor, **kwargs)
+    if p_value > 0 and p_value < 1:
+        n_std = math.sqrt(-2 * math.log(p_value))
+    else:
+        raise ValueError
+    scale_x = np.sqrt(cov[0,0]) * n_std
+    mean_x = np.mean(x)
+    scale_y = np.sqrt(cov[1,1]) * n_std
+    mean_y = np.mean(y)
+    transf = transforms.Affine2D().rotate_deg(45).scale(scale_x, scale_y).translate(mean_x, mean_y)
+    ellipse.set_transform(transf + ax.transData)
+    return ax.add_patch(ellipse)
+    
+    for i in range(len(df.columns)):
+    for j in range(i + 1, len(df.columns)):
+        fig, ax = plt.subplots(figsize=(8,8))
+        conf_ellipse(df.iloc[:,i], df.iloc[:,j], ax, 0.05, edgecolor='green')
+        ax.scatter(df.iloc[:,i], df.iloc[:,j], s=10)
+        plt.show()
+        
+from sklearn import preprocessing
+scaler_std = preprocessing.StandardScaler()
+for name in ['FixedAcidity','VolatileAcidity','CitricAcid','ResidualSugar','Chlorides','FreeSulfurDioxide','TotalSulfurDioxide','Density','PH','Sulphates','Alcohol']:
+    x = scaler_std.fit_transform(df[[name]])
+    df[name]=x[0:]
+df.head()
+
+from sklearn.decomposition import PCA
+pca = PCA(n_components = 11)
+
+table_train = pca.fit_transform(df[['FixedAcidity','VolatileAcidity','CitricAcid','ResidualSugar','Chlorides','FreeSulfurDioxide','TotalSulfurDioxide','Density','PH','Sulphates','Alcohol']])
+print(table_train)
+print(df @ pca.components_.T)
+
+np.linalg.inv(ev).dot(df.T).T
+
+cov = pca.get_covariance()
+[en, ev] = np.linalg.eig(cov)
+
+[en, ev] = np.linalg.eig(cov)
+print(ev)
+print(en)
+
+explained_variance_ratio = pca.explained_variance_ratio_
+print(explained_variance_ratio)
+s = 0
+for i in range(len(explained_variance_ratio)):
+    if s <= 0.95:
+        s+=explained_variance_ratio[i]
+        print(i, ' ', explained_variance_ratio[i])
+print(s)
